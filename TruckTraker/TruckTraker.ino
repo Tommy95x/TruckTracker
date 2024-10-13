@@ -46,6 +46,8 @@ TinyGsm modem(SerialAT);
 
 TinyGsmClient client(modem);
 
+SoftwareSerial GPSSerial (GPS_RX_PIN, GPS_TX_PIN);
+
 bool bWifiConnectedFlag = false;
 bool bSIMConnectedFlag = false;
 bool bFileFlag = false;
@@ -68,18 +70,20 @@ void setup()
   setupEEPROM();  
   setupSD();
   setupWifi();
-  setupSIM();  
+  //setupSIM();  
   setupGPS();
 
+  Serial.println("Create Task readAndWriteGPSDataTask");
   xTaskCreatePinnedToCore(readAndWriteGPSDataTask,          // Function that should be called
                           "ReadGPS&WriteData",              // Name of the task (for debugging)
                           10000,                            // Stack size (bytes)
                           NULL,                             // Parameter to pass
                           0,                                // Task priority
                           &thReadAndWriteHandlerTask,       // Task handle
-                          1                                 // Core you want to run the task on (0 or 1)
+                          0                                 // Core you want to run the task on (0 or 1)
   );
 
+  Serial.println("Create Task connectAndSendDataTask");
   xTaskCreatePinnedToCore(connectAndSendDataTask,           // Function that should be called
                           "ManageConnectionAndSendData",    // Name of the task (for debugging)
                           10000,                            // Stack size (bytes)
@@ -133,12 +137,17 @@ void setupGPS()
   ullast_serial_time = 0;
   shGPSDataSemaphore = xSemaphoreCreateMutex();
   
+  Serial.println("Setup GPS");
+  pinMode(GPS_RX_PIN, INPUT);
+  pinMode(GPS_TX_PIN, OUTPUT);
   // GPS Serial
-  Serial2.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
+  //GPSSerial.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
+  GPSSerial.begin(GPS_BAUD);
 }
 
 void setupSIM()
 {
+  Serial.println("SIM Setup");
   // Set modem reset, enable, power pins
   pinMode(MODEM_PWKEY, OUTPUT);
   pinMode(MODEM_RST, OUTPUT);
@@ -148,7 +157,7 @@ void setupSIM()
   digitalWrite(MODEM_POWER_ON, HIGH);
 
   // Set GSM module baud rate and UART pins
-  SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
+  SerialAT.begin(GSM_BOUND, SERIAL_8N1, MODEM_RX, MODEM_TX);
   delay(3000);
 
   // Restart SIM800 module, it takes quite some time
@@ -165,6 +174,7 @@ void setupSIM()
 //-------------------------------------------------
 void setupWifi()
 {
+  Serial.println("Wifi Setup");
   WiFi.begin(ssid, password);
 }
 
@@ -172,6 +182,7 @@ void setupWifi()
 void setupEEPROM()
 {
   //EPROM
+  Serial.println("EEPROM Setup");
   EEPROM.begin(EEPROM_SIZE); 
 }
 
@@ -180,6 +191,7 @@ void setupConsole()
 {
   //Debug Software Serail
   Serial.begin(CONSOLE_BAUD);
+  Serial.println("Serial Start");
 }
 
 //-------------------------------------------------
@@ -195,7 +207,7 @@ void readGPSData()
     Serial.print(",");
     Serial.print(gps.altitude.meters());
     Serial.print(" m,");
-    
+
     if (gps.date.isValid()) 
     {
       sprintf(sz, "%02d/%02d/%02d,", gps.date.day(), gps.date.month(), gps.date.year());
@@ -216,13 +228,12 @@ void readGPSData()
       Serial.print(F("********,"));
       Serial.print(F("********,"));
     }
-          
+
     Serial.printf("%011.8f°,", gps.location.lat());
     Serial.printf("%011.8f°,", gps.location.lng());
     Serial.printf("%03d,", (int)gps.course.deg());
     Serial.printf("%03.1f", gps.speed.knots());
-    Serial.print("--------END GPS Encoded Data--------");
-
+    Serial.print("\n--------END GPS Encoded Data--------");
     Serial.println();
 
     ullast_serial_time = millis();
@@ -242,7 +253,7 @@ void memorizeData()
   sprintf(sz, "%02d:%02d:%02d,", gps.time.hour(), gps.time.minute(), gps.time.second());
   String strTime = sz;
   
-  String dataMessage = String(TRACCAR_DEVICE_NUM) + "," + String(strDate) + "," + String(strTime) + "," + String(gpsData.dLatitude) + "," + String(gpsData.dLongitude) + String(gpsData.iAltitude) + String(gpsData.dSpeed) + "\r\n";
+  String dataMessage = strTraccatDeviceNum + "," + String(strDate) + "," + String(strTime) + "," + String(gpsData.dLatitude) + "," + String(gpsData.dLongitude) + String(gpsData.iAltitude) + String(gpsData.dSpeed) + "\r\n";
   xSemaphoreGive(shGPSDataSemaphore);
   
   Serial.print("Save data: ");
@@ -256,14 +267,14 @@ void decodeGPSData()
 {
   // GPS Read
   char tmp_c;
-  while (Serial2.available()) 
+  while (GPSSerial.available()) 
   {
-    tmp_c = Serial2.read();
+    tmp_c = GPSSerial.read();
     if (RAW_GPS_DEBUG)
     {
       Serial.print("--------GPS Raw Data:--------\n");
       Serial.print(tmp_c);
-      Serial.print("--------END GPS Raw Data--------");
+      Serial.print("\n--------END GPS Raw Data--------");
       Serial.println();
     }
 
@@ -295,12 +306,18 @@ void sendData()
 {
   if(bSIMConnectedFlag || bWifiConnectedFlag)
   {
+    Serial.println("Try to send data");
+
     while (xSemaphoreTake(shGPSDataSemaphore, portMAX_DELAY) != pdPASS);
+    Serial.println("Get GPS data to send");
     if(gpsData.bDataValidity)
     {
       HTTPClient http;
-  
-      http.begin(strTraccarUrl+"/?id="+TRACCAR_DEVICE_NUM+"&lat="+gpsData.dLatitude+"&lon="+gpsData.dLongitude+"&speed="+gpsData.dSpeed+""); 
+      String strRequest = strTraccarUrl+"/?id="+strTraccatDeviceNum+"&lat="+gpsData.dLatitude+"&lon="+gpsData.dLongitude+"&speed="+gpsData.dSpeed+"";
+
+      Serial.println("Sending Data to " + strTraccarUrl + ": " + strRequest);
+
+      http.begin(strRequest); 
       xSemaphoreGive(shGPSDataSemaphore);
     
       int httpCode = http.GET();
@@ -440,7 +457,7 @@ void connectAndSendDataTask(void* parameters)
   {
     wifiConnectionManagement();
     
-    simConnectionManagement();
+    //simConnectionManagement();
 
     if(bSIMConnectedFlag || bWifiConnectedFlag)
       sendData();

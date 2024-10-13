@@ -6,13 +6,13 @@
 #define _DEBUG_ 1
 
 //-----------------GPS Stuff-----------------------
-#define GPS_RX_PIN 27  // filo bianco (TX GPS)
-#define GPS_TX_PIN 26  // filo verde (RX GPS)
+#define GPS_RX_PIN 19  // filo bianco (TX GPS)
+#define GPS_TX_PIN 5  // filo giallo (RX GPS)
 #define RXD2 GPS_RX_PIN
 #define TXD2 GPS_TX_PIN
-#define GPS_BAUD 9600
-#define GPS_DEBUG 1
-#define RAW_GPS_DEBUG 1
+#define GPS_BAUD 38400
+#define GPS_DEBUG 0
+#define RAW_GPS_DEBUG 0
 const TickType_t tReadAndWriteGPSDataDelay = 500 / portTICK_PERIOD_MS;
 const TickType_t tConnectAndSendDataDelay = 500 / portTICK_PERIOD_MS;
 
@@ -64,14 +64,13 @@ unsigned long ullast_serial_time = 0;
 #define SD_CS 5 //SD Pin Module
 
 //-----------------Traccar Stuff----------------------
-#define TRACCAR_DEVICE_NUM 0
-
-const String strTraccarUrl = "http://traccarserverip:5055";
+const String strTraccatDeviceNum = "traccar1";
+const String strTraccarUrl = "http://casagrilli.ddns.net:5055";
 
 //------------------Wifi Stuff------------------------
 // Replace with your network credentials
-const char* ssid     = "YOUR_SSID";
-const char* password = "YOUR_PASSWORD";
+const char* ssid     = "TIM-98428495";
+const char* password = "grilligiuseppe2018";
 
 //-----------------GPRS/SIM Stuff---------------------
 // TTGO T-Call pins
@@ -93,6 +92,7 @@ const char* password = "YOUR_PASSWORD";
 // Configure TinyGSM library
 #define TINY_GSM_MODEM_SIM800      // Modem is SIM800
 #define TINY_GSM_RX_BUFFER   1024  // Set RX buffer to 1Kb
+#define GSM_BOUND 250000
 
 // Your GPRS credentials (leave empty, if not needed)
 const char apn[]      = ""; // APN (example: internet.vodafone.pt) use https://wiki.apnchanger.org

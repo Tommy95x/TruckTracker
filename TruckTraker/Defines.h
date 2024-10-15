@@ -2,12 +2,9 @@
 #include <Arduino.h>
 #include <FreeRTOSConfig.h>
 
-//----------------Common Define---------------------
-#define _DEBUG_ 1
-
 //-----------------GPS Stuff-----------------------
-#define GPS_RX_PIN 19  // filo bianco (TX GPS)
-#define GPS_TX_PIN 5  // filo giallo (RX GPS)
+#define GPS_RX_PIN 12  // filo bianco (TX GPS)
+#define GPS_TX_PIN 13  // filo giallo (RX GPS)
 #define RXD2 GPS_RX_PIN
 #define TXD2 GPS_TX_PIN
 #define GPS_BAUD 38400
@@ -61,14 +58,18 @@ struct GPSData
 unsigned long ullast_serial_time = 0;
 
 //-----------------SD Card Stuff----------------------
+#define SD_DEBUG 1
+#define FILE_DEBUG 1
 #define SD_CS 5 //SD Pin Module
 
 //-----------------Traccar Stuff----------------------
+#define TRACCAR_DEBUG 0
 const String strTraccatDeviceNum = "traccar1";
 const String strTraccarUrl = "http://casagrilli.ddns.net:5055";
 
 //------------------Wifi Stuff------------------------
 // Replace with your network credentials
+#define WIFI_DEBUG 0
 const char* ssid     = "TIM-98428495";
 const char* password = "grilligiuseppe2018";
 
@@ -81,10 +82,6 @@ const char* password = "grilligiuseppe2018";
 #define MODEM_RX             26
 #define I2C_SDA              21
 #define I2C_SCL              22
-
-// BME280 pins
-#define I2C_SDA_2            18
-#define I2C_SCL_2            19
 
 // Set serial for AT commands (to SIM800 module)
 #define SerialAT Serial1

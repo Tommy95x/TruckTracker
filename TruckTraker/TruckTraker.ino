@@ -106,27 +106,29 @@ void setupSD()
   // Initialize SD card
 
   uint8_t cardType;
+  uint64_t cardSize;
 
-  SD.begin(SD_CS);  
+  if(SD_DEBUG)
+    Serial.println("Initializing SD card...");
+ 
   if(!SD.begin(SD_CS)) 
   {
-    Serial.println("Card Mount Failed");
+    if(SD_DEBUG)
+      Serial.println("Card Mount Failed");
     return;
   } 
 
   cardType = SD.cardType();
   if(cardType == CARD_NONE) 
   {
-    Serial.println("No SD card attached");
+    if(SD_DEBUG)
+      Serial.println("No SD card attached");
     return;
   }
-  
-  Serial.println("Initializing SD card...");
-  if (!SD.begin(SD_CS)) 
-  {
-    Serial.println("ERROR - SD card initialization failed!");
-    return;    // init failed
-  }
+
+  cardSize = SD.cardSize() / (1024 * 1024);
+  if(SD_DEBUG)
+    Serial.printf("SD Card Size: %lluMB\n", cardSize);
 
   bSDFlag = true;
 }
@@ -198,43 +200,62 @@ void setupConsole()
 void readGPSData()
 {
   decodeGPSData();
-  if(GPS_DEBUG && millis() - ullast_serial_time > SERIAL_DEBUG_LOOP)
+
+  if(millis() - ullast_serial_time > SERIAL_DEBUG_LOOP)
   {
     char sz[32];
     
-    Serial.print("--------GPS Encoded Data:--------\n");
-    Serial.print(gps.satellites.value());
-    Serial.print(",");
-    Serial.print(gps.altitude.meters());
-    Serial.print(" m,");
+    if(GPS_DEBUG)
+    {    
+      Serial.print("--------GPS Encoded Data:--------\n");
+      Serial.print(gps.satellites.value());
+      Serial.print(",");
+      Serial.print(gps.altitude.meters());
+      Serial.print(" m,");
+    }
 
     if (gps.date.isValid()) 
     {
       sprintf(sz, "%02d/%02d/%02d,", gps.date.day(), gps.date.month(), gps.date.year());
-      Serial.print(sz);
 
-      if(strLogFile.length() <= 0)
+      String strFileName = sz;
+      if(GPS_DEBUG)
+        Serial.println("Date Info: " + strFileName);
+      
+      strFileName += ".txt";
+
+      if(strLogFile.length() <= 0 || strFileName != strLogFile)
       {
-        sprintf(sz, "%02d_%02d_%02d,", gps.date.day(), gps.date.month(), gps.date.year());
-        String strFileName = sz;
         strLogFile = "/"+strFileName+".txt";
+        bFileFlag = false;
       }
 
       sprintf(sz, "%02d:%02d:%02d,", gps.time.hour(), gps.time.minute(), gps.time.second());
-      Serial.print(sz);
+      if(GPS_DEBUG)
+      {
+        Serial.print("Time Info: ");
+        Serial.print(sz);
+        Serial.print("\n");
+      }
     } 
     else 
     {
-      Serial.print(F("********,"));
-      Serial.print(F("********,"));
+      if(GPS_DEBUG)
+      {
+        Serial.print(F("********,"));
+        Serial.print(F("********,"));
+      }
     }
 
-    Serial.printf("%011.8f°,", gps.location.lat());
-    Serial.printf("%011.8f°,", gps.location.lng());
-    Serial.printf("%03d,", (int)gps.course.deg());
-    Serial.printf("%03.1f", gps.speed.knots());
-    Serial.print("\n--------END GPS Encoded Data--------");
-    Serial.println();
+    if(GPS_DEBUG)
+    {
+      Serial.printf("%011.8f°,", gps.location.lat());
+      Serial.printf("%011.8f°,", gps.location.lng());
+      Serial.printf("%03d,", (int)gps.course.deg());
+      Serial.printf("%03.1f", gps.speed.kmph());
+      Serial.print("\n--------END GPS Encoded Data--------");
+      Serial.println();
+    }
 
     ullast_serial_time = millis();
   }
@@ -247,19 +268,34 @@ void memorizeData()
   
   char sz[32];
   
-  sprintf(sz, "%02d/%02d/%02d,", gps.date.day(), gps.date.month(), gps.date.year());
+  sprintf(sz, "%02d/%02d/%02d,", gpsData.iDay, gpsData.iMonth, gpsData.iYear);
   String strDate = sz;
 
-  sprintf(sz, "%02d:%02d:%02d,", gps.time.hour(), gps.time.minute(), gps.time.second());
+  sprintf(sz, "%02d:%02d:%02d,", gpsData.iHour, gpsData.iMinute, gpsData.iSecond);
   String strTime = sz;
+
+  sprintf(sz, "%011.8f,", gpsData.dLatitude);
+  String strLatitude = sz;
+
+  sprintf(sz, "%011.8f,", gpsData.dLongitude);
+  String strLongitude = sz;
+
+  sprintf(sz, "%03d,", gpsData.iAltitude);
+  String strAltitude = sz;
+
+  sprintf(sz, "%03.1f", gpsData.dSpeed);
+  String strSpeed = sz;
   
-  String dataMessage = strTraccatDeviceNum + "," + String(strDate) + "," + String(strTime) + "," + String(gpsData.dLatitude) + "," + String(gpsData.dLongitude) + String(gpsData.iAltitude) + String(gpsData.dSpeed) + "\r\n";
+  String strDataMessage = strTraccatDeviceNum + "," + strDate + "," + strTime + "," + strLatitude + "," + strLongitude + "," + strAltitude + "," + strSpeed + "\r\n";
   xSemaphoreGive(shGPSDataSemaphore);
   
-  Serial.print("Save data: ");
-  Serial.println(dataMessage);
-  
-  appendFile(SD, strLogFile.c_str(), dataMessage.c_str());
+  if(SD_DEBUG)
+  {
+    Serial.print("Save data: ");
+    Serial.println(strDataMessage);
+  }
+
+  appendFile(SD, strLogFile.c_str(), strDataMessage.c_str());
 }
 
 //-------------------------------------------------
@@ -289,7 +325,7 @@ void decodeGPSData()
   gpsData.dLongitude     = gps.location.isValid()    ? gps.location.lng()          : 0.0;
   gpsData.fHdop          = gps.hdop.isValid()        ? gps.hdop.hdop()             : 0.0;
   gpsData.iAltitude      = gps.altitude.isValid()    ? (int)gps.altitude.meters()  : 0;
-  gpsData.dSpeed         = gps.speed.isValid()       ? gps.speed.knots()           : 0.0;
+  gpsData.dSpeed         = gps.speed.isValid()       ? gps.speed.kmph()            : 0.0;
   gpsData.iCourse        = gps.course.isValid()      ? (int)gps.course.deg()       : 0;
   gpsData.iDay           = gps.date.isValid()        ? (int)gps.date.day()         : 0;
   gpsData.iMonth         = gps.date.isValid()        ? (int)gps.date.month()       : 0;
@@ -306,16 +342,31 @@ void sendData()
 {
   if(bSIMConnectedFlag || bWifiConnectedFlag)
   {
-    Serial.println("Try to send data");
+    if(TRACCAR_DEBUG)
+      Serial.println("Try to send data");
 
     while (xSemaphoreTake(shGPSDataSemaphore, portMAX_DELAY) != pdPASS);
-    Serial.println("Get GPS data to send");
+
     if(gpsData.bDataValidity)
     {
-      HTTPClient http;
-      String strRequest = strTraccarUrl+"/?id="+strTraccatDeviceNum+"&lat="+gpsData.dLatitude+"&lon="+gpsData.dLongitude+"&speed="+gpsData.dSpeed+"";
+      char sz[32];
 
-      Serial.println("Sending Data to " + strTraccarUrl + ": " + strRequest);
+      if(TRACCAR_DEBUG)
+        Serial.println("Get GPS data to send");
+
+      sprintf(sz, "%011.8f,", gpsData.dLatitude);
+      String strLatitude = sz;
+
+      sprintf(sz, "%011.8f,", gpsData.dLongitude);
+      String strLongitude = sz;
+
+      sprintf(sz, "%03.1f", gpsData.dSpeed);
+      String strSpeed = sz;
+
+      HTTPClient http;
+      String strRequest = strTraccarUrl+"/?id="+strTraccatDeviceNum+"&lat="+strLatitude+"&lon="+strLongitude+"&speed="+strSpeed+"";
+      if(TRACCAR_DEBUG)
+        Serial.println("Sending Data to " + strTraccarUrl + ": " + strRequest);
 
       http.begin(strRequest); 
       xSemaphoreGive(shGPSDataSemaphore);
@@ -324,12 +375,14 @@ void sendData()
                                            
       if (httpCode == 200) 
       { //Check for the returning code
-        Serial.println("DATA SENT TO THE SERVER");
-        delay(3000);
+        if(TRACCAR_DEBUG)
+          Serial.println("DATA SENT TO THE SERVER");
+        //delay(3000);
       }
       else 
-      {         
-        Serial.println("Error on HTTP request");
+      {
+        if(TRACCAR_DEBUG)
+          Serial.println("Error on HTTP request");
       }
   
       http.end(); //Free the resources}
@@ -348,13 +401,18 @@ void openOrCreateLogFile()
   File fLogFile = SD.open(strLogFile.c_str());
   if(!fLogFile) 
   {
-    Serial.println("File doens't exist");
-    Serial.println("Creating file...");
+    if(SD_DEBUG)
+    {
+      Serial.println("File doens't exist");
+      Serial.println("Creating file...");
+    }
+
     writeFile(SD, strLogFile.c_str(), "Truck ID, Date, Time of Day, Latitude, Longitude, Altitude, Speed \r\n");
   }
   else 
   {
-    Serial.println("File " +strLogFile+" already exists");  
+    if(SD_DEBUG)
+      Serial.println("File " +strLogFile+" already exists");  
   }
 
   fLogFile.close();
@@ -386,12 +444,14 @@ void wifiConnectionManagement()
 {
   if(WiFi.status() != WL_CONNECTED)
   {
-    Serial.println("Not connected to Wifi");
+    if(WIFI_DEBUG)
+      Serial.println("Not connected to Wifi");
     bWifiConnectedFlag = false;
   } 
   else
   {
-    Serial.println("Connect to Wifi");
+    if(WIFI_DEBUG)
+      Serial.println("Connect to Wifi");
     bWifiConnectedFlag = true;
   } 
 }
@@ -399,35 +459,53 @@ void wifiConnectionManagement()
 //-------------------------------------------------
 void writeFile(fs::FS &fs, const char * path, const char * message) 
 {
-  Serial.printf("Writing file: %s\n", path);
-
+  if(SD_DEBUG)
+    Serial.printf("Writing file: %s\n", path);
+  
   File file = fs.open(path, FILE_WRITE);
-  if(!file) {
-    Serial.println("Failed to open file for writing");
+  if(!file) 
+  {
+    if(SD_DEBUG)
+      Serial.println("Failed to open file for writing");
     return;
   }
-  if(file.print(message)) {
-    Serial.println("File written");
-  } else {
-    Serial.println("Write failed");
+
+  if(file.print(message)) 
+  {
+    if(SD_DEBUG)
+      Serial.println("File written");
+  } 
+  else 
+  {
+    if(SD_DEBUG)
+      Serial.println("Write failed");
   }
+
   file.close();
 }
 
 //-------------------------------------------------
 void appendFile(fs::FS &fs, const char * path, const char * message) 
 {
-  Serial.printf("Appending to file: %s\n", path);
+  if(SD_DEBUG)
+    Serial.printf("Appending to file: %s\n", path);
 
   File file = fs.open(path, FILE_APPEND);
-  if(!file) {
-    Serial.println("Failed to open file for appending");
+  if(!file) 
+  {
+    if(SD_DEBUG)
+      Serial.println("Failed to open file for appending");
     return;
   }
-  if(file.print(message)) {
-    Serial.println("Message appended");
-  } else {
-    Serial.println("Append failed");
+  if(file.print(message)) 
+  {
+    if(SD_DEBUG)
+      Serial.println("Message appended");
+  } 
+  else 
+  {
+    if(SD_DEBUG)
+      Serial.println("Append failed");
   }
   file.close();
 }
@@ -438,11 +516,29 @@ void readAndWriteGPSDataTask(void* parameters)
   while(true)
   {
     readGPSData();
+
+    if(FILE_DEBUG)
+    {
+      String strDataMessage = "Test File\n";
+      if(strLogFile.length() <= 0)
+      {
+        String strFileName = "Test";
+        strLogFile = "/"+strFileName+".txt";
+      }
+
+      if(!bFileFlag && strLogFile.length() > 0)
+        openOrCreateLogFile();
+
+      Serial.print("Save data: ");
+      Serial.println(strDataMessage);
+
+      appendFile(SD, strLogFile.c_str(), strDataMessage.c_str());
+    }
     
     if(bSDFlag && !bFileFlag && strLogFile.length() > 0)
       openOrCreateLogFile();
     
-    if(bSDFlag && !bFileFlag && !gpsData.bDataValidity)
+    if(bSDFlag && bFileFlag && !gpsData.bDataValidity)
       memorizeData(); 
 
     if(tReadAndWriteGPSDataDelay > 0)

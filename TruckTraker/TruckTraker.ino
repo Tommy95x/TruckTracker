@@ -54,6 +54,7 @@ bool bWifiConnectedFlag = false;
 bool bSIMConnectedFlag = false;
 bool bFileFlag = false;
 bool bSDFlag = false;
+bool wireguardConnectedFlag = false;
 
 static WireGuard wg;
 
@@ -202,12 +203,15 @@ void setupConsole()
 
 //-------------------------------------------------
 void setupWireguard(){
-  wg.begin(
-    local_ip,           // IP address of the local interface
-    private_key,        // Private key of the local interface
-    endpoint_address,   // Address of the endpoint peer.
-    public_key,         // Public key of the endpoint peer.
-    endpoint_port);     // Port pf the endpoint peer.
+  if((bWifiConnectedFlag || bSIMConnectedFlag) && !wireguardConnectedFlag){
+    wg.begin(
+      local_ip,           // IP address of the local interface
+      private_key,        // Private key of the local interface
+      endpoint_address,   // Address of the endpoint peer.
+      public_key,         // Public key of the endpoint peer.
+      endpoint_port);     // Port pf the endpoint peer.
+    wireguardConnectedFlag = true;
+  }
 }
 
 //-------------------------------------------------
@@ -444,6 +448,7 @@ void simConnectionManagement()
   if (!modem.gprsConnect(apn, gprsUser, gprsPass)) 
   {
     Serial.println(" fail");
+    wireguardConnectedFlag = false;
   }
   else 
   {
@@ -461,6 +466,7 @@ void wifiConnectionManagement()
     if(WIFI_DEBUG)
       Serial.println("Not connected to Wifi");
     bWifiConnectedFlag = false;
+    wireguardConnectedFlag = false;
   } 
   else
   {
@@ -568,6 +574,8 @@ void connectAndSendDataTask(void* parameters)
     wifiConnectionManagement();
     
     //simConnectionManagement();
+
+    setupWireguard();
 
     if(bSIMConnectedFlag || bWifiConnectedFlag)
       sendData();

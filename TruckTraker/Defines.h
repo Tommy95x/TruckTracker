@@ -72,7 +72,7 @@ unsigned long ullast_serial_time = 0;
 //-----------------Traccar Stuff----------------------
 #define TRACCAR_DEBUG 0
 const String strTraccatDeviceNum = "traccar1";
-const String strTraccarUrl = "http://casagrilli.ddns.net:5055";
+const String strTraccarUrl = local_ip[0]+"."+local_ip[1]+"."+local_ip[2]+"."+local_ip[3]+":"+String(endpoint_port);
 
 //------------------Wifi Stuff------------------------
 // Replace with your network credentials

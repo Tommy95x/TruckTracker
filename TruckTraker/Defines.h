@@ -89,6 +89,7 @@ const char* password = "grilligiuseppe2018";
 #define MODEM_RX             26
 #define I2C_SDA              21
 #define I2C_SCL              22
+#define GPRS_DEBUG           1
 
 // Set serial for AT commands (to SIM800 module)
 #define SerialAT Serial1

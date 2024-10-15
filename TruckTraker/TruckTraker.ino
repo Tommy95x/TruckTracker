@@ -5,6 +5,7 @@
 #include "SD.h"
 #include "Defines.h"
 #include "TinyGPS++.h"
+#include "FilesManager.h"
 #include "SoftwareSerial.h"
 #include "BluetoothSerial.h"
 
@@ -24,8 +25,6 @@ void setupEEPROM();
 void setupConsole();
 void setupWireguard();
 void decodeGPSData();
-void writeFile(fs::FS &fs, const char * path, const char * message);
-void appendFile(fs::FS &fs, const char * path, const char * message);
 
 void sendData();
 void readGPSData();
@@ -54,7 +53,7 @@ bool bWifiConnectedFlag = false;
 bool bSIMConnectedFlag = false;
 bool bFileFlag = false;
 bool bSDFlag = false;
-bool wireguardConnectedFlag = false;
+bool bWireguardConnectedFlag = false;
 
 static WireGuard wg;
 
@@ -203,14 +202,14 @@ void setupConsole()
 
 //-------------------------------------------------
 void setupWireguard(){
-  if((bWifiConnectedFlag || bSIMConnectedFlag) && !wireguardConnectedFlag){
+  if((bWifiConnectedFlag || bSIMConnectedFlag) && !bWireguardConnectedFlag){
     wg.begin(
       local_ip,           // IP address of the local interface
       private_key,        // Private key of the local interface
       endpoint_address,   // Address of the endpoint peer.
       public_key,         // Public key of the endpoint peer.
       endpoint_port);     // Port pf the endpoint peer.
-    wireguardConnectedFlag = true;
+    bWireguardConnectedFlag = true;
   }
 }
 
@@ -442,17 +441,22 @@ void openOrCreateLogFile()
 void simConnectionManagement()
 {
   
-  Serial.print("Connecting to APN: ");
-  Serial.print(apn);
+  if(GPRS_DEBUG)
+  {
+    Serial.print("Connecting to APN: ");
+    Serial.print(apn);
+  }
 
   if (!modem.gprsConnect(apn, gprsUser, gprsPass)) 
   {
-    Serial.println(" fail");
-    wireguardConnectedFlag = false;
+    if(GPRS_DEBUG)
+      Serial.println(" fail");
+    bWireguardConnectedFlag = bWifiConnectedFlag;
   }
   else 
   {
-    Serial.println(" OK");
+    if(GPRS_DEBUG)
+      Serial.println(" OK");
     
     bSIMConnectedFlag = true;
   }    
@@ -466,7 +470,7 @@ void wifiConnectionManagement()
     if(WIFI_DEBUG)
       Serial.println("Not connected to Wifi");
     bWifiConnectedFlag = false;
-    wireguardConnectedFlag = false;
+    bWireguardConnectedFlag = bSIMConnectedFlag;
   } 
   else
   {
@@ -474,60 +478,6 @@ void wifiConnectionManagement()
       Serial.println("Connect to Wifi");
     bWifiConnectedFlag = true;
   } 
-}
-
-//-------------------------------------------------
-void writeFile(fs::FS &fs, const char * path, const char * message) 
-{
-  if(SD_DEBUG)
-    Serial.printf("Writing file: %s\n", path);
-  
-  File file = fs.open(path, FILE_WRITE);
-  if(!file) 
-  {
-    if(SD_DEBUG)
-      Serial.println("Failed to open file for writing");
-    return;
-  }
-
-  if(file.print(message)) 
-  {
-    if(SD_DEBUG)
-      Serial.println("File written");
-  } 
-  else 
-  {
-    if(SD_DEBUG)
-      Serial.println("Write failed");
-  }
-
-  file.close();
-}
-
-//-------------------------------------------------
-void appendFile(fs::FS &fs, const char * path, const char * message) 
-{
-  if(SD_DEBUG)
-    Serial.printf("Appending to file: %s\n", path);
-
-  File file = fs.open(path, FILE_APPEND);
-  if(!file) 
-  {
-    if(SD_DEBUG)
-      Serial.println("Failed to open file for appending");
-    return;
-  }
-  if(file.print(message)) 
-  {
-    if(SD_DEBUG)
-      Serial.println("Message appended");
-  } 
-  else 
-  {
-    if(SD_DEBUG)
-      Serial.println("Append failed");
-  }
-  file.close();
 }
 
 //-------------------------------------------------
@@ -573,7 +523,7 @@ void connectAndSendDataTask(void* parameters)
   {
     wifiConnectionManagement();
     
-    //simConnectionManagement();
+    simConnectionManagement();
 
     setupWireguard();
 

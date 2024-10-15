@@ -12,6 +12,7 @@
 #include <EEPROM.h>
 #include <HTTPClient.h>
 #include <TinyGsmClient.h>
+#include <WireGuard-ESP32.h>
 
 //-------------------------------------------------
 //-------------Functions Declaration---------------
@@ -21,6 +22,7 @@ void setupSIM();
 void setupWifi();
 void setupEEPROM();
 void setupConsole();
+void setupWireguard();
 void decodeGPSData();
 void writeFile(fs::FS &fs, const char * path, const char * message);
 void appendFile(fs::FS &fs, const char * path, const char * message);
@@ -52,6 +54,8 @@ bool bWifiConnectedFlag = false;
 bool bSIMConnectedFlag = false;
 bool bFileFlag = false;
 bool bSDFlag = false;
+
+static WireGuard wg;
 
 TaskHandle_t thReadAndWriteHandlerTask;
 TaskHandle_t thconnectAndSendHandleTask;
@@ -194,6 +198,16 @@ void setupConsole()
   //Debug Software Serail
   Serial.begin(CONSOLE_BAUD);
   Serial.println("Serial Start");
+}
+
+//-------------------------------------------------
+void setupWireguard(){
+  wg.begin(
+    local_ip,           // IP address of the local interface
+    private_key,        // Private key of the local interface
+    endpoint_address,   // Address of the endpoint peer.
+    public_key,         // Public key of the endpoint peer.
+    endpoint_port);     // Port pf the endpoint peer.
 }
 
 //-------------------------------------------------

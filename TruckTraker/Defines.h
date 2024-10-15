@@ -13,6 +13,13 @@
 const TickType_t tReadAndWriteGPSDataDelay = 500 / portTICK_PERIOD_MS;
 const TickType_t tConnectAndSendDataDelay = 500 / portTICK_PERIOD_MS;
 
+// WireGuard configuration ---
+char private_key[] = "";  // [Interface] PrivateKey
+IPAddress local_ip(192,168,1,88);            // [Interface] Address
+char public_key[] = "";     // [Peer] PublicKey
+char endpoint_address[] = "casagrilli.ddns.net";    // [Peer] Endpoint
+int endpoint_port = 5055;     
+
 struct GPSData 
 {
     bool bDataValidity;

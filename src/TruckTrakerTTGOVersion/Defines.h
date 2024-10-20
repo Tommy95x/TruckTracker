@@ -11,8 +11,18 @@ const TickType_t tReadAndWriteGPSDataDelay = 500 / portTICK_PERIOD_MS;
 const TickType_t tConnectAndSendDataDelay = 500 / portTICK_PERIOD_MS;
 
 //-----------------WireGuard Stuff-----------------------
-char private_key[] = "";  // [Interface] PrivateKey
-IPAddress local_ip(192,168,1,88);            // [Interface] Address
+
+wireguard_config_t wg_config = ESP_WIREGUARD_CONFIG_DEFAULT();
+
+wg_config.private_key = "my_private_key";
+wg_config.listen_port = "51820"; //Non sono sicuro sia così
+wg_config.public_key = "public_key_wireguard";
+wg_config.allowed_ip = "192.168.1.88";
+wg_config.allowed_ip_mask = "255.255.255.0";
+wg_config.endpoint = "casagrilli.ddns.net";
+wg_config.port = "51820";
+
+char local_ip[] = "192.168.1.88";           // [Interface] Address
 char public_key[] = "";     // [Peer] PublicKey
 char endpoint_address[] = "casagrilli.ddns.net";    // [Peer] Endpoint
 int endpoint_port = 5055;     

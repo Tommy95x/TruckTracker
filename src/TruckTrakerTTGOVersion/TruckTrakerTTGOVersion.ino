@@ -6,14 +6,13 @@
 #include "Defines.h"
 #include "TinyGPS++.h"
 #include "SoftwareSerial.h"
-#include "../Common/FilesManager.h"
-#include "../Common/CommonDefines.h"
+#include "Common/FilesManager.h"
+#include "Common/CommonDefines.h"
 
 #include <WiFi.h>
 #include <EEPROM.h>
 #include <HTTPClient.h>
 #include <TinyGsmClient.h>
-#include <WireGuard-ESP32.h>
 
 //-------------------------------------------------
 //-------------Functions Declaration---------------
@@ -61,6 +60,9 @@ TaskHandle_t thReadAndWriteHandlerTask;
 TaskHandle_t thconnectAndSendHandleTask;
 
 SemaphoreHandle_t shGPSDataSemaphore = NULL;
+
+esp_err_t err = ESP_FAIL;
+wireguard_ctx_t ctx = {0};
 
 //-------------------------------------------------
 //-------------Main Functions----------------------
@@ -203,13 +205,15 @@ void setupConsole()
 //-------------------------------------------------
 void setupWireguard(){
   if((bWifiConnectedFlag || bSIMConnectedFlag) && !bWireguardConnectedFlag){
-    wg.begin(
-      local_ip,           // IP address of the local interface
-      private_key,        // Private key of the local interface
-      endpoint_address,   // Address of the endpoint peer.
-      public_key,         // Public key of the endpoint peer.
-      endpoint_port);     // Port pf the endpoint peer.
-    bWireguardConnectedFlag = true;
+    /* If the device is behind NAT or stateful firewall, set persistent_keepalive.
+    persistent_keepalive is disabled by default */
+    // wg_config.persistent_keepalive = 10;
+
+    err = esp_wireguard_init(&wg_config, &ctx);
+
+    /* start establishing the link. after this call, esp_wireguard start
+      establishing connection. */
+    err = esp_wireguard_connect(&ctx);
   }
 }
 
@@ -363,6 +367,11 @@ void sendData()
       Serial.println("Try to send data");
 
     while (xSemaphoreTake(shGPSDataSemaphore, portMAX_DELAY) != pdPASS);
+
+    err = esp_wireguardif_peer_is_up(&ctx);
+
+    if(TRACCA_DEBUG && err != ESP_OK)
+      Serial.println("")
 
     if(gpsData.bDataValidity)
     {

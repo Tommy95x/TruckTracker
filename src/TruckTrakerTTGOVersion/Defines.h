@@ -12,19 +12,7 @@ const TickType_t tConnectAndSendDataDelay = 500 / portTICK_PERIOD_MS;
 
 //-----------------WireGuard Stuff-----------------------
 
-wireguard_config_t wg_config = ESP_WIREGUARD_CONFIG_DEFAULT();
-
-wg_config.private_key = "my_private_key";
-wg_config.listen_port = "51820"; //Non sono sicuro sia così
-wg_config.public_key = "public_key_wireguard";
-wg_config.allowed_ip = "192.168.1.88";
-wg_config.allowed_ip_mask = "255.255.255.0";
-wg_config.endpoint = "casagrilli.ddns.net";
-wg_config.port = "51820";
-
-char local_ip[] = "192.168.1.88";           // [Interface] Address
-char public_key[] = "";     // [Peer] PublicKey
-char endpoint_address[] = "casagrilli.ddns.net";    // [Peer] Endpoint
+char endpoint_address[] = "http://casagrilli.ddns.net";    // [Peer] Endpoint
 int endpoint_port = 5055;     
 
 struct GPSData
@@ -76,7 +64,7 @@ unsigned long ullast_serial_time = 0;
 
 //-----------------Traccar Stuff----------------------
 const String strTraccatDeviceNum = "traccar1";
-const String strTraccarUrl = String(local_ip[0])+"."+String(local_ip[1])+"."+String(local_ip[2])+"."+String(local_ip[3])+":"+String(endpoint_port);
+const String strTraccarUrl =  endpoint_address+ ":" +String(endpoint_port);
 
 //------------------Wifi Stuff------------------------
 // Replace with your network credentials

@@ -22,7 +22,6 @@ void setupSIM();
 void setupWifi();
 void setupEEPROM();
 void setupConsole();
-void setupWireguard();
 void decodeGPSData();
 
 void sendData();
@@ -52,17 +51,11 @@ bool bWifiConnectedFlag = false;
 bool bSIMConnectedFlag = false;
 bool bFileFlag = false;
 bool bSDFlag = false;
-bool bWireguardConnectedFlag = false;
-
-static WireGuard wg;
 
 TaskHandle_t thReadAndWriteHandlerTask;
 TaskHandle_t thconnectAndSendHandleTask;
 
 SemaphoreHandle_t shGPSDataSemaphore = NULL;
-
-esp_err_t err = ESP_FAIL;
-wireguard_ctx_t ctx = {0};
 
 //-------------------------------------------------
 //-------------Main Functions----------------------
@@ -202,20 +195,6 @@ void setupConsole()
   Serial.println("Serial Start");
 }
 
-//-------------------------------------------------
-void setupWireguard(){
-  if((bWifiConnectedFlag || bSIMConnectedFlag) && !bWireguardConnectedFlag){
-    /* If the device is behind NAT or stateful firewall, set persistent_keepalive.
-    persistent_keepalive is disabled by default */
-    // wg_config.persistent_keepalive = 10;
-
-    err = esp_wireguard_init(&wg_config, &ctx);
-
-    /* start establishing the link. after this call, esp_wireguard start
-      establishing connection. */
-    err = esp_wireguard_connect(&ctx);
-  }
-}
 
 //-------------------------------------------------
 void readGPSData()
@@ -368,8 +347,6 @@ void sendData()
 
     while (xSemaphoreTake(shGPSDataSemaphore, portMAX_DELAY) != pdPASS);
 
-    err = esp_wireguardif_peer_is_up(&ctx);
-
     if(TRACCA_DEBUG && err != ESP_OK)
       Serial.println("")
 
@@ -460,7 +437,6 @@ void simConnectionManagement()
   {
     if(GPRS_DEBUG)
       Serial.println(" fail");
-    bWireguardConnectedFlag = bWifiConnectedFlag;
   }
   else 
   {
@@ -479,7 +455,6 @@ void wifiConnectionManagement()
     if(WIFI_DEBUG)
       Serial.println("Not connected to Wifi");
     bWifiConnectedFlag = false;
-    bWireguardConnectedFlag = bSIMConnectedFlag;
   } 
   else
   {
@@ -534,7 +509,6 @@ void connectAndSendDataTask(void* parameters)
     
     simConnectionManagement();
 
-    setupWireguard();
 
     if(bSIMConnectedFlag || bWifiConnectedFlag)
       sendData();

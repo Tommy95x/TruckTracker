@@ -347,9 +347,6 @@ void sendData()
 
     while (xSemaphoreTake(shGPSDataSemaphore, portMAX_DELAY) != pdPASS);
 
-    if(TRACCA_DEBUG && err != ESP_OK)
-      Serial.println("")
-
     if(gpsData.bDataValidity)
     {
       char sz[32];

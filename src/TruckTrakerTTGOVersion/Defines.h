@@ -12,7 +12,7 @@ const TickType_t tConnectAndSendDataDelay = 500 / portTICK_PERIOD_MS;
 
 //-----------------WireGuard Stuff-----------------------
 
-char endpoint_address[] = "http://casagrilli.ddns.net";    // [Peer] Endpoint
+String endpoint_address = "http://casagrilli.ddns.net";    // [Peer] Endpoint
 int endpoint_port = 5055;     
 
 struct GPSData

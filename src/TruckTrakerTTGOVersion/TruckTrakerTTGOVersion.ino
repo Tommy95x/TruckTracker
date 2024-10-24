@@ -366,7 +366,11 @@ void sendData()
 
       HTTPClient http;
 
-      int httpCode = sendDataWifi(strLatitude, strLongitude, strSpeed, &http);
+      if(bWifiConnectedFlag){
+        int httpCode = sendDataWifi(strLatitude, strLongitude, strSpeed, &http);
+      } else {
+        //Chiamata sendDataGsm(strLatitude, strLongitude, strSpeed, &http)
+      }
                                            
       if (httpCode == 200) 
       { //Check for the returning code

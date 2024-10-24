@@ -14,6 +14,7 @@
 #include <HTTPClient.h>
 #include <TinyGsmClient.h>
 #include <WiFiClientSecure.h>
+#include <time.h>
 
 //-------------------------------------------------
 //-------------Functions Declaration---------------
@@ -364,10 +365,14 @@ void sendData()
       sprintf(sz, "%03.1f", gpsData.dSpeed);
       String strSpeed = sz;
 
+      String timeSinceEpoch = calculateTimeSinceToEpoch();
+
       HTTPClient http;
 
+      int httpCode;
+
       if(bWifiConnectedFlag){
-        int httpCode = sendDataWifi(strLatitude, strLongitude, strSpeed, &http);
+        httpCode = sendDataWifi(strLatitude, strLongitude, strSpeed, timeSinceEpoch, &http);
       } else {
         //Chiamata sendDataGsm(strLatitude, strLongitude, strSpeed, &http)
       }
@@ -395,14 +400,14 @@ void sendData()
 
 //------------------------------------------------
 
-int sendDataWifi(String strLatitude, String strLongitude, String strSpeed, HTTPClient *http)
+int sendDataWifi(String strLatitude, String strLongitude, String strSpeed, String timestamp, HTTPClient *http)
 {
 
   WiFiClientSecure *client = new WiFiClientSecure;
   client->setCACert(server_cert);  // Usa il certificato self-signed
 
 
-  String postData = "id=" + strTraccatDeviceNum + "&lat=" + strLatitude + "&lon=" + strLongitude + "&speed=" + strSpeed;
+  String postData = "id=" + strTraccatDeviceNum + "&lat=" + strLatitude + "&lon=" + strLongitude + "&speed=" + strSpeed + "&timestamp=" + timestamp;
 
   if(TRACCAR_DEBUG)
     Serial.println("Sending Data to " + strTraccarUrl + ":/?" + postData);
@@ -418,6 +423,27 @@ int sendDataWifi(String strLatitude, String strLongitude, String strSpeed, HTTPC
   delete client;
 
   return httpCode;
+}
+
+String calculateTimeSinceToEpoch(){
+  int year = gpsData.iYear;
+  int month = gpsData.iMonth;  // Ottobre
+  int day = gpsData.iDay;
+  int hour = gpsData.iHour;
+  int minute = gpsData.iMinute;
+  int second = gpsData.iSecond;
+
+  struct tm t = {0};  // Inizializza tutti i campi a 0
+  t.tm_year = year - 1900;  // Anno dal 1900
+  t.tm_mon = month - 1;     // Mese da 0 (Gennaio è 0)
+  t.tm_mday = day;
+  t.tm_hour = hour;
+  t.tm_min = minute;
+  t.tm_sec = second;
+
+  time_t timeSinceEpoch = mktime(&t);
+
+  return String(timeSinceEpoch);
 }
 
 //-------------------------------------------------

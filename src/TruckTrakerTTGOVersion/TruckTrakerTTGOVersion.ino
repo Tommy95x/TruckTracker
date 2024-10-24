@@ -13,6 +13,7 @@
 #include <EEPROM.h>
 #include <HTTPClient.h>
 #include <TinyGsmClient.h>
+#include <WiFiClientSecure.h>
 
 //-------------------------------------------------
 //-------------Functions Declaration---------------
@@ -364,14 +365,8 @@ void sendData()
       String strSpeed = sz;
 
       HTTPClient http;
-      String strRequest = strTraccarUrl+"/?id="+strTraccatDeviceNum+"&lat="+strLatitude+"&lon="+strLongitude+"&speed="+strSpeed+"";
-      if(TRACCAR_DEBUG)
-        Serial.println("Sending Data to " + strTraccarUrl + ": " + strRequest);
 
-      http.begin(strRequest); 
-      xSemaphoreGive(shGPSDataSemaphore);
-    
-      int httpCode = http.GET();
+      int httpCode = sendDataWifi(strLatitude, strLongitude, strSpeed, &http);
                                            
       if (httpCode == 200) 
       { //Check for the returning code
@@ -392,6 +387,33 @@ void sendData()
       xSemaphoreGive(shGPSDataSemaphore);
     }
   }
+}
+
+//------------------------------------------------
+
+int sendDataWifi(String strLatitude, String strLongitude, String strSpeed, HTTPClient *http)
+{
+
+  WiFiClientSecure *client = new WiFiClientSecure;
+  client->setCACert(server_cert);  // Usa il certificato self-signed
+
+
+  String postData = "id=" + strTraccatDeviceNum + "&lat=" + strLatitude + "&lon=" + strLongitude + "&speed=" + strSpeed;
+
+  if(TRACCAR_DEBUG)
+    Serial.println("Sending Data to " + strTraccarUrl + ":/?" + postData);
+
+  http->begin(*client, strTraccarUrl); 
+  http->addHeader("Authorization", bearerToken);
+  http->addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+  xSemaphoreGive(shGPSDataSemaphore);
+
+  int httpCode = http->POST(postData);
+
+  delete client;
+
+  return httpCode;
 }
 
 //-------------------------------------------------
